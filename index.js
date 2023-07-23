@@ -9,7 +9,6 @@ const { format, differenceInDays, parseISO } = require('date-fns');
 
 dotenv.config(); // Load environment variables from .env file
 
-const scheduledDate = '08:00:00'; // Agendamento diário às 08:00 AM
 const timeZone = 'America/Sao_Paulo';
 
 // Função para registrar erros na tabela error_log
@@ -179,7 +178,7 @@ async function processFileInFolder(folderPath) {
 
   // Verifica se há arquivos na pasta
   if (files.length === 0) {
-    console.log(`Não há arquivos na pasta ${folderPath}.`);
+    console.log(`Não há arquivos na pasta ${folderPath}. Aguardando novos arquivos...`);
     return;
   }
 
@@ -204,7 +203,7 @@ async function processFilesInProcessFolder() {
 
   // Verifica se há arquivos na pasta
   if (files.length === 0) {
-    console.log(`Não há arquivos para processar na pasta ${processFolderPath}.`);
+    console.log(`Não há arquivos para processar na pasta ${processFolderPath}. Aguardando novos arquivos...`);
     return;
   }
 
@@ -223,22 +222,7 @@ async function processFilesInProcessFolder() {
 }
 
 // Função para agendar a execução do processo de leitura e processamento
-function scheduleProcess() {
-  // Obter a data e hora do próximo agendamento
-  const currentDate = new Date();
-  const currentDateString = format(currentDate, "yyyy-MM-dd'T'HH:mm:ss");
-
-  if (currentDate.getDay() !== 1 || currentDate.getHours() >= 8) {
-    const nextScheduledDate = parseISO(format(currentDate, "yyyy-MM-dd") + 'T' + scheduledDate, { timeZone });
-    if (currentDate.getHours() >= 8) {
-      nextScheduledDate.setDate(nextScheduledDate.getDate() + 7);
-    }
-    const daysLeft = differenceInDays(nextScheduledDate, currentDate);
-    console.log('Este código será executado apenas na data agendada.');
-    console.log(`Dias faltando para o agendamento: ${daysLeft}`);
-    return;
-  }
-
+function scheduleProcess(cronSchedule) {
   // Executa a função para processar arquivos na pasta processar, se houver
   processFilesInProcessFolder();
 
@@ -250,18 +234,42 @@ function scheduleProcess() {
 // Executa o processo de leitura e processamento no início
 scheduleProcess();
 
-// Agendamento para executar o processo todas as segundas-feiras às 08:00 AM
-cron.schedule('0 8 * * 1', () => {
-  scheduleProcess();
-});
+// Obter a configuração de agendamento do banco de dados e atualizar a execução
+async function updateExecutionSchedule() {
+  try {
+    const pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: process.env.DB_PORT,
+    });
 
-// Função para agendar o envio de e-mails a cada 20 segundos
-function scheduleEmailSending() {
-  setInterval(() => {
-    const downloadsFolderPath = path.join(__dirname, 'downloads');
-    processFileInFolder(downloadsFolderPath);
-  }, 20 * 1000); // 20 segundos em milissegundos
+    const query = `
+      SELECT * FROM public.app_control WHERE app_name = $1
+    `;
+    const values = ['disparador_de_email'];
+
+    const result = await pool.query(query, values);
+    const schedule = result.rows[0];
+
+    if (schedule) {
+      const cronExpression = schedule.cron ? schedule.cron : '*/3 * * * *'; // A cada 3 minutos (para fins de demonstração)
+      cron.schedule(cronExpression, () => {
+        scheduleProcess(cronExpression);
+      });
+      console.log('Agendamento de tarefa configurado com sucesso:', cronExpression);
+    } else {
+      console.log('Nenhuma configuração de agendamento encontrada para disparador_de_email.');
+    }
+
+    pool.end();
+  } catch (error) {
+    console.error('Erro ao atualizar informações de execução no banco de dados:', error);
+  }
 }
 
-// Inicia o agendamento do envio de e-mails a cada 20 segundos
-scheduleEmailSending();
+// Agendamento para verificar e atualizar o cron de execução a cada minuto
+cron.schedule('* * * * *', () => {
+  updateExecutionSchedule();
+});
