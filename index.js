@@ -12,23 +12,8 @@ dotenv.config(); // Load environment variables from .env file
 const scheduledDate = '08:00:00'; // Agendamento diário às 08:00 AM
 const timeZone = 'America/Sao_Paulo';
 
-async function sendFilteredEmails() {
-  const currentDate = new Date();
-  const currentDateString = format(currentDate, "yyyy-MM-dd'T'HH:mm:ss");
-
-  if (currentDate.getDay() !== 1 || currentDate.getHours() >= 8) {
-    const nextScheduledDate = parseISO(format(currentDate, "yyyy-MM-dd") + 'T' + scheduledDate, { timeZone });
-    if (currentDate.getHours() >= 8) {
-      nextScheduledDate.setDate(nextScheduledDate.getDate() + 7);
-    }
-    const daysLeft = differenceInDays(nextScheduledDate, currentDate);
-    console.log('Este código será executado apenas na data agendada.');
-    console.log(`Dias faltando para o agendamento: ${daysLeft}`);
-    return;
-  }
-
-  const csvFilePath = path.join(__dirname, 'dados_csv', 'meuCSV.csv');
-
+// Função para ler e processar o arquivo CSV
+async function processCSVFile(csvFilePath) {
   const jsonArray = [];
 
   console.log('Iniciando leitura do arquivo CSV...');
@@ -112,7 +97,6 @@ async function sendFilteredEmails() {
               `;
               const values = [email, 'sent', new Date(), new Date()];
               await client.query(saveEmailQuery, values);
-
             } catch (error) {
               console.log('Ocorreu um erro ao enviar o e-mail:', error);
             }
@@ -121,7 +105,6 @@ async function sendFilteredEmails() {
             setTimeout(() => {
               sendEmailWithDelay(index + 1, client);
             }, 4000); // 4 seconds in milliseconds
-
           } else {
             client.release(); // Release the client connection
           }
@@ -156,10 +139,101 @@ async function sendFilteredEmails() {
     });
 }
 
-// Call the function to start sending filtered emails
-sendFilteredEmails();
+// Função para mover um arquivo de uma pasta para outra
+function moveFile(sourcePath, destinationPath) {
+  fs.renameSync(sourcePath, destinationPath);
+}
 
-// Schedule the function to run every Monday at 08:00 AM (Cron expression: '0 8 * * 1')
+// Função para ler e processar um arquivo CSV na pasta processar
+async function processFileInFolder(folderPath) {
+  // Lista os arquivos na pasta
+  const files = fs.readdirSync(folderPath);
+
+  // Verifica se há arquivos na pasta
+  if (files.length === 0) {
+    console.log(`Não há arquivos na pasta ${folderPath}.`);
+    return;
+  }
+
+  // Assume que haverá apenas um arquivo na pasta
+  const csvFilePath = path.join(folderPath, files[0]);
+
+  console.log(`Iniciando leitura e processamento do arquivo CSV ${csvFilePath}...`);
+  await processCSVFile(csvFilePath);
+  console.log(`Arquivo CSV ${csvFilePath} processado com sucesso.`);
+
+  // Move o arquivo processado para a pasta de processado
+  const processedFolderPath = path.join(__dirname, 'processado');
+  moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
+
+  console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
+}
+
+// Função para verificar e processar os arquivos na pasta processar
+async function processFilesInProcessFolder() {
+  const processFolderPath = path.join(__dirname, 'processar');
+  const files = fs.readdirSync(processFolderPath);
+
+  // Verifica se há arquivos na pasta
+  if (files.length === 0) {
+    console.log(`Não há arquivos para processar na pasta ${processFolderPath}.`);
+    return;
+  }
+
+  console.log(`Iniciando processamento dos arquivos na pasta ${processFolderPath}...`);
+  for (const file of files) {
+    const filePath = path.join(processFolderPath, file);
+    await processCSVFile(filePath);
+    console.log(`Arquivo ${file} processado com sucesso.`);
+
+    // Move o arquivo processado para a pasta de processado
+    const processedFolderPath = path.join(__dirname, 'processado');
+    moveFile(filePath, path.join(processedFolderPath, file));
+
+    console.log(`Arquivo ${file} movido para a pasta ${processedFolderPath}.`);
+  }
+}
+
+// Função para agendar a execução do processo de leitura e processamento
+function scheduleProcess() {
+  // Obter a data e hora do próximo agendamento
+  const currentDate = new Date();
+  const currentDateString = format(currentDate, "yyyy-MM-dd'T'HH:mm:ss");
+
+  if (currentDate.getDay() !== 1 || currentDate.getHours() >= 8) {
+    const nextScheduledDate = parseISO(format(currentDate, "yyyy-MM-dd") + 'T' + scheduledDate, { timeZone });
+    if (currentDate.getHours() >= 8) {
+      nextScheduledDate.setDate(nextScheduledDate.getDate() + 7);
+    }
+    const daysLeft = differenceInDays(nextScheduledDate, currentDate);
+    console.log('Este código será executado apenas na data agendada.');
+    console.log(`Dias faltando para o agendamento: ${daysLeft}`);
+    return;
+  }
+
+  // Executa a função para processar arquivos na pasta processar, se houver
+  processFilesInProcessFolder();
+
+  // Executa a função para ler e processar o arquivo CSV em downloads, se houver
+  const downloadsFolderPath = path.join(__dirname, 'downloads');
+  processFileInFolder(downloadsFolderPath);
+}
+
+// Executa o processo de leitura e processamento no início
+scheduleProcess();
+
+// Agendamento para executar o processo todas as segundas-feiras às 08:00 AM
 cron.schedule('0 8 * * 1', () => {
-  sendFilteredEmails();
+  scheduleProcess();
 });
+
+// Função para agendar o envio de e-mails a cada 20 segundos
+//function scheduleEmailSending() {
+//  setInterval(() => {
+//    const downloadsFolderPath = path.join(__dirname, 'downloads');
+//    processFileInFolder(downloadsFolderPath);
+//  }, 20 * 1000); // 20 segundos em milissegundos
+//}
+
+// Inicia o agendamento do envio de e-mails a cada 20 segundos
+scheduleEmailSending();
