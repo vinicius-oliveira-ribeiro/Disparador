@@ -1,0 +1,18 @@
+{
+  "name": "disparador",
+  "version": "1.0.0",
+  "description": "Disparador de e-mail",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@sendgrid/mail": "^7.7.0",
+    "csv-parse": "^5.4.0",
+    "csv2json": "^2.0.2",
+    "nodemailer": "^6.9.4",
+    "nodemailer-smtp-transport": "^2.7.4"
+  }
+}
