@@ -3,11 +3,30 @@ const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
+const cron = require('node-cron');
 const dotenv = require('dotenv');
+const { format, differenceInDays, parseISO } = require('date-fns');
 
 dotenv.config(); // Load environment variables from .env file
 
+const scheduledDate = '08:00:00'; // Agendamento diário às 08:00 AM
+const timeZone = 'America/Sao_Paulo';
+
 async function sendFilteredEmails() {
+  const currentDate = new Date();
+  const currentDateString = format(currentDate, "yyyy-MM-dd'T'HH:mm:ss");
+
+  if (currentDate.getDay() !== 1 || currentDate.getHours() >= 8) {
+    const nextScheduledDate = parseISO(format(currentDate, "yyyy-MM-dd") + 'T' + scheduledDate, { timeZone });
+    if (currentDate.getHours() >= 8) {
+      nextScheduledDate.setDate(nextScheduledDate.getDate() + 7);
+    }
+    const daysLeft = differenceInDays(nextScheduledDate, currentDate);
+    console.log('Este código será executado apenas na data agendada.');
+    console.log(`Dias faltando para o agendamento: ${daysLeft}`);
+    return;
+  }
+
   const csvFilePath = path.join(__dirname, 'dados_csv', 'meuCSV.csv');
 
   const jsonArray = [];
@@ -139,3 +158,8 @@ async function sendFilteredEmails() {
 
 // Call the function to start sending filtered emails
 sendFilteredEmails();
+
+// Schedule the function to run every Monday at 08:00 AM (Cron expression: '0 8 * * 1')
+cron.schedule('0 8 * * 1', () => {
+  sendFilteredEmails();
+});
