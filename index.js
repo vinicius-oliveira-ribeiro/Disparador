@@ -12,6 +12,30 @@ dotenv.config(); // Load environment variables from .env file
 const scheduledDate = '08:00:00'; // Agendamento diário às 08:00 AM
 const timeZone = 'America/Sao_Paulo';
 
+// Função para registrar erros na tabela error_log
+async function logError(errorType, errorMessage) {
+  try {
+    const pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: process.env.DB_PORT,
+    });
+
+    const query = `
+      INSERT INTO public.error_log (error_type, error_message, occurred_at)
+      VALUES ($1, $2, $3)
+    `;
+    const values = [errorType, errorMessage, new Date()];
+
+    await pool.query(query, values);
+    pool.end();
+  } catch (error) {
+    console.error('Erro ao registrar erro no banco de dados:', error);
+  }
+}
+
 // Função para ler e processar o arquivo CSV
 async function processCSVFile(csvFilePath) {
   const jsonArray = [];
@@ -99,6 +123,8 @@ async function processCSVFile(csvFilePath) {
               await client.query(saveEmailQuery, values);
             } catch (error) {
               console.log('Ocorreu um erro ao enviar o e-mail:', error);
+              // Registra o erro na tabela de erros
+              logError('Erro de envio de e-mail', error.message);
             }
 
             // After sending an email, schedule the next email with a 4-second delay
@@ -129,6 +155,8 @@ async function processCSVFile(csvFilePath) {
           console.log('Envio de e-mails concluído.');
         } catch (error) {
           console.error('Erro ao conectar ao banco de dados:', error);
+          // Registra o erro na tabela de erros
+          logError('Erro de conexão ao banco de dados', error.message);
         } finally {
           // Close the pool when all emails are sent
           pool.end();
@@ -228,12 +256,12 @@ cron.schedule('0 8 * * 1', () => {
 });
 
 // Função para agendar o envio de e-mails a cada 20 segundos
-//function scheduleEmailSending() {
-//  setInterval(() => {
-//    const downloadsFolderPath = path.join(__dirname, 'downloads');
-//    processFileInFolder(downloadsFolderPath);
-//  }, 20 * 1000); // 20 segundos em milissegundos
-//}
+function scheduleEmailSending() {
+  setInterval(() => {
+    const downloadsFolderPath = path.join(__dirname, 'downloads');
+    processFileInFolder(downloadsFolderPath);
+  }, 20 * 1000); // 20 segundos em milissegundos
+}
 
 // Inicia o agendamento do envio de e-mails a cada 20 segundos
 scheduleEmailSending();
