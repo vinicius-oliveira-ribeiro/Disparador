@@ -2,83 +2,140 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
+const { Pool } = require('pg');
 const dotenv = require('dotenv');
 
-const csvFilePath = path.join(__dirname, 'dados_csv', 'meuCSV.csv');
+dotenv.config(); // Load environment variables from .env file
 
-dotenv.config(); // Carrega as variáveis de ambiente do .env
+async function sendFilteredEmails() {
+  const csvFilePath = path.join(__dirname, 'dados_csv', 'meuCSV.csv');
 
-const jsonArray = [];
+  const jsonArray = [];
 
-console.log('Iniciando leitura do arquivo CSV...');
+  console.log('Iniciando leitura do arquivo CSV...');
 
-fs.createReadStream(csvFilePath)
-  .pipe(csv({ separator: ';' })) // Defina o separador como ponto e vírgula
-  .on('data', (data) => {
-    jsonArray.push(data);
-  })
-  .on('end', async () => {
-    console.log('Leitura do arquivo CSV concluída.');
-    // Converta 'Storage Used (Byte)' para gigabytes para cada objeto no array
-    jsonArray.forEach((obj) => {
-      if (obj['Storage Used (Byte)']) {
-        const bytes = parseFloat(obj['Storage Used (Byte)']);
-        const gigabytes = bytes / (1024 * 1024 * 1024); // 1 gigabyte = 1024 MB = 1024 * 1024 KB = 1024 * 1024 * 1024 bytes
-        obj['Storage Used (GB)'] = gigabytes.toFixed(2); // Adicionando novo campo com o valor convertido
+  fs.createReadStream(csvFilePath)
+    .pipe(csv({ separator: ';' })) // Set the separator to semicolon
+    .on('data', (data) => {
+      jsonArray.push(data);
+    })
+    .on('end', async () => {
+      console.log('Leitura do arquivo CSV concluída.');
+      // Convert 'Storage Used (Byte)' to gigabytes for each object in the array
+      jsonArray.forEach((obj) => {
+        if (obj['Storage Used (Byte)']) {
+          const bytes = parseFloat(obj['Storage Used (Byte)']);
+          const gigabytes = bytes / (1024 * 1024 * 1024); // 1 gigabyte = 1024 MB = 1024 * 1024 KB = 1024 * 1024 * 1024 bytes
+          obj['Storage Used (GB)'] = gigabytes.toFixed(2); // Adding new field with the converted value
+        }
+      });
+
+      // Filter the objects where 'Storage Used (GB)' reaches 80% of 50GB (40GB)
+      const filteredArray = jsonArray.filter((obj) => {
+        return obj['Storage Used (GB)'] >= 40;
+      });
+
+      if (filteredArray.length > 0) {
+        console.log('Iniciando envio de e-mails...');
+        const transporter = nodemailer.createTransport({
+          host: 'smtp.office365.com', // Microsoft 365 SMTP server
+          port: 587,
+          secure: false, // Connection is not secure since the port is 587
+          auth: {
+            user: process.env.EMAIL_USER, // Use your email address here
+            pass: process.env.EMAIL_PASS, // Use your email password here
+          },
+        });
+
+        // Function to send an email and save it to the database with a 4-second delay
+        async function sendEmailWithDelay(index, client) {
+          if (index < filteredArray.length) {
+            const obj = filteredArray[index];
+            const email = obj['User Principal Name'];
+
+            // Check if the email has already been sent by querying the database
+            const checkEmailQuery = `
+              SELECT status FROM public.envio_de_email WHERE email = $1
+            `;
+            const checkEmailValues = [email];
+            const result = await client.query(checkEmailQuery, checkEmailValues);
+
+            if (result.rows.length > 0 && result.rows[0].status === 'sent') {
+              console.log(`E-mail ${email} já foi enviado. Nada a Fazer.`);
+              sendEmailWithDelay(index + 1, client); // Move on to the next email
+              return;
+            }
+
+            const currentDate = new Date();
+            const nextDay = new Date(currentDate);
+            nextDay.setDate(currentDate.getDate() + 1);
+            const formattedDate = `${nextDay.getDate()}/${nextDay.getMonth() + 1}/${nextDay.getFullYear()}`;
+            const clientName = obj['Display Name'];
+            const mailOptions = {
+              from: process.env.EMAIL_USER, // Use your email address as the 'from' field
+              to: email, // Use 'User Principal Name' as the recipient's email address
+              subject: 'Dados filtrados do JSON',
+              text: `
+                Olá, ${clientName}, notamos que o limite de espaço em disco do seu e-mail está se aproximando. 
+                Agendamos uma limpeza para o dia ${formattedDate}.
+                Atenciosamente, Gabriel Rocha`, // Modify the email body to include the text and date
+            };
+
+            try {
+              const info = await transporter.sendMail(mailOptions);
+              console.log('E-mail enviado:', info.response);
+              console.log('URL do E-mail Ethereal:', nodemailer.getTestMessageUrl(info));
+
+              // Save the sent email to the database
+              const saveEmailQuery = `
+                INSERT INTO public.envio_de_email (email, status, create_date, modified_date)
+                VALUES ($1, $2, $3, $4)
+              `;
+              const values = [email, 'sent', new Date(), new Date()];
+              await client.query(saveEmailQuery, values);
+
+            } catch (error) {
+              console.log('Ocorreu um erro ao enviar o e-mail:', error);
+            }
+
+            // After sending an email, schedule the next email with a 4-second delay
+            setTimeout(() => {
+              sendEmailWithDelay(index + 1, client);
+            }, 4000); // 4 seconds in milliseconds
+
+          } else {
+            client.release(); // Release the client connection
+          }
+        }
+
+        // Create a connection pool for the PostgreSQL database
+        const pool = new Pool({
+          user: process.env.DB_USER,
+          host: process.env.DB_HOST,
+          database: process.env.DB_NAME,
+          password: process.env.DB_PASSWORD,
+          port: process.env.DB_PORT,
+        });
+
+        try {
+          // Get a client from the pool
+          const client = await pool.connect();
+
+          // Start sending emails with a 4-second delay for each email
+          sendEmailWithDelay(0, client);
+
+          console.log('Envio de e-mails concluído.');
+        } catch (error) {
+          console.error('Erro ao conectar ao banco de dados:', error);
+        } finally {
+          // Close the pool when all emails are sent
+          pool.end();
+        }
+      } else {
+        console.log("Nenhum objeto atende à condição: 'Storage Used (GB)' >= 40GB (80% de 50GB).");
       }
     });
+}
 
-    // Filtrar os objetos onde 'Storage Used (GB)' atinge 80% de 50GB (40GB)
-    const filteredArray = jsonArray.filter((obj) => {
-      return obj['Storage Used (GB)'] >= 40;
-    });
-
-    if (filteredArray.length > 0) {
-      console.log('Iniciando envio de e-mails...');
-      const transporter = nodemailer.createTransport({
-        host: 'smtp.office365.com', // Servidor SMTP do Microsoft 365
-        port: 587,
-        secure: false, // A conexão não é segura, pois o porto é 587
-        auth: {
-          user: process.env.EMAIL_USER, // Use o seu e-mail aqui
-          pass: process.env.EMAIL_PASS, // Use a senha do seu e-mail aqui
-        },
-      });
-
-      filteredArray.forEach((obj) => {
-        // Get the current date
-        const currentDate = new Date();
-
-        // Add one day to the current date
-        const nextDay = new Date(currentDate);
-        nextDay.setDate(currentDate.getDate() + 1);
-
-        // Format the date in the desired format (dd/mm/yyyy)
-        const formattedDate = `${nextDay.getDate()}/${nextDay.getMonth() + 1}/${nextDay.getFullYear()}`;
-        const clinteName = obj['Display Name'];
-        const mailOptions = {
-          from: process.env.EMAIL_USER, // Use o seu endereço de e-mail aqui
-          to: obj['User Principal Name'], // Use 'User Principal Name' como o destinatário do e-mail
-          subject: 'Dados filtrados do JSON',
-          text: `
-            Olá, ${clinteName}, notamos que o limite de espaço em disco do seu e-mail está se aproximando. 
-            Agendamos uma limpeza para o dia ${formattedDate}.
-            
-            Atenciosamente, Gabriel Rocha`, // Modifique o corpo do e-mail para incluir o texto e a data
-        };
-
-        transporter.sendMail(mailOptions, (error, info) => {
-          if (error) {
-            console.log('Ocorreu um erro ao enviar o e-mail:', error);
-          } else {
-            console.log('E-mail enviado:', info.response);
-            console.log('URL do E-mail Ethereal:', nodemailer.getTestMessageUrl(info));
-          }
-        });
-      });
-
-      console.log('Envio de e-mails concluído.');
-    } else {
-      console.log("Nenhum objeto atende à condição: 'Storage Used (GB)' >= 40GB (80% de 50GB).");
-    }
-  });
+// Call the function to start sending filtered emails
+sendFilteredEmails();
