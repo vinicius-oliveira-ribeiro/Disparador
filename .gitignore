@@ -1,0 +1,39 @@
+# Ignore .env file
+.env
+
+# Ignore node_modules directory (used for npm dependencies)
+node_modules/
+
+# Ignore any log files
+*.log
+
+# Ignore any temporary files
+*.tmp
+
+# Ignore OS-specific files (e.g., macOS .DS_Store, Windows Thumbs.db)
+.DS_Store
+Thumbs.db
+
+# Ignore IDE-specific files and directories
+.idea/
+.vscode/
+
+# Ignore build and output directories
+/build/
+/dist/
+
+# Ignore package-lock.json (used for npm)
+package-lock.json
+
+# Ignore yarn.lock (used for yarn)
+yarn.lock
+
+# Ignore any sensitive information files
+*.pem
+*.key
+*.crt
+*.cer
+
+# Ignore configuration files for development tools (e.g., .editorconfig, .eslintrc)
+.editorconfig
+.eslintrc
