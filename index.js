@@ -221,6 +221,7 @@ async function processFilesInProcessFolder() {
   }
 }
 
+
 // Função para agendar a execução do processo de leitura e processamento
 function scheduleProcess(cronSchedule) {
   // Executa a função para processar arquivos na pasta processar, se houver
