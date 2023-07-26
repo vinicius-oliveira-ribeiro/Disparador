@@ -1,3 +1,4 @@
+// index.js
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
@@ -15,11 +16,10 @@ const timeZone = 'America/Sao_Paulo';
 async function logError(errorType, errorMessage) {
   try {
     const pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT,
+      connectionString: process.env.DATABASE_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      ssl: {
+        rejectUnauthorized: false, // Set this to true if your database requires SSL
+      },
     });
 
     const query = `
@@ -137,11 +137,10 @@ async function processCSVFile(csvFilePath) {
 
         // Create a connection pool for the PostgreSQL database
         const pool = new Pool({
-          user: process.env.DB_USER,
-          host: process.env.DB_HOST,
-          database: process.env.DB_NAME,
-          password: process.env.DB_PASSWORD,
-          port: process.env.DB_PORT,
+          connectionString: process.env.DATABASE_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+          ssl: {
+            rejectUnauthorized: false, // Set this to true if your database requires SSL
+          },
         });
 
         try {
@@ -190,7 +189,7 @@ async function processFileInFolder(folderPath) {
   console.log(`Arquivo CSV ${csvFilePath} processado com sucesso.`);
 
   // Move o arquivo processado para a pasta de processado
-  const processedFolderPath = path.join(__dirname, 'processado');
+  const processedFolderPath = path.join(__dirname, 'src/processado');
   moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
 
   console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
@@ -198,7 +197,7 @@ async function processFileInFolder(folderPath) {
 
 // Função para verificar e processar os arquivos na pasta processar
 async function processFilesInProcessFolder() {
-  const processFolderPath = path.join(__dirname, 'processar');
+  const processFolderPath = path.join(__dirname, 'src/processar');
   const files = fs.readdirSync(processFolderPath);
 
   // Verifica se há arquivos na pasta
@@ -214,7 +213,7 @@ async function processFilesInProcessFolder() {
     console.log(`Arquivo ${file} processado com sucesso.`);
 
     // Move o arquivo processado para a pasta de processado
-    const processedFolderPath = path.join(__dirname, 'processado');
+    const processedFolderPath = path.join(__dirname, 'src/processado');
     moveFile(filePath, path.join(processedFolderPath, file));
 
     console.log(`Arquivo ${file} movido para a pasta ${processedFolderPath}.`);
@@ -228,7 +227,7 @@ function scheduleProcess(cronSchedule) {
   processFilesInProcessFolder();
 
   // Executa a função para ler e processar o arquivo CSV em downloads, se houver
-  const downloadsFolderPath = path.join(__dirname, 'downloads');
+  const downloadsFolderPath = path.join(__dirname, 'src/downloads');
   processFileInFolder(downloadsFolderPath);
 }
 
@@ -239,11 +238,10 @@ scheduleProcess();
 async function updateExecutionSchedule() {
   try {
     const pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT,
+      connectionString: process.env.DATABASE_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      ssl: {
+        rejectUnauthorized: false, // Set this to true if your database requires SSL
+      },
     });
 
     const query = `
