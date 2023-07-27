@@ -34,12 +34,8 @@ CREATE TABLE public.error_log (
 ALTER TABLE public.app_control
 ALTER COLUMN next_execution TYPE VARCHAR(255);
 
-INSERT INTO public.app_control (app_name, next_execution, created_at, updated_at)
-VALUES ('disparador_de_email', '2023-07-07T15:54:00', NOW(), NOW());
-
-UPDATE public.app_control
-SET cron = '* 5 * * *'
-WHERE id = 1;
+INSERT INTO public.app_control (app_name, next_execution, cron, created_at, updated_at)
+VALUES ('disparador_de_email', '2023-07-07T15:54:00', '* * * * *',NOW(), NOW());
 
 --create database do controle de emails usado no python
 CREATE TABLE IF NOT EXISTS public.emails (subject TEXT, date TIMESTAMP)
