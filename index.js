@@ -1,7 +1,7 @@
-// index.js
+const shell = require('shelljs');
+const path = require('path');
 const csv = require('csv-parser');
 const fs = require('fs');
-const path = require('path');
 const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
 const cron = require('node-cron');
@@ -9,6 +9,30 @@ const dotenv = require('dotenv');
 const { format, differenceInDays, parseISO } = require('date-fns');
 
 dotenv.config(); // Load environment variables from .env file
+
+// Função para criar um ambiente virtual do Python e instalar as dependências
+function createPythonVirtualEnv() {
+  const pythonEnvPath = path.join(__dirname, 'python_env');
+
+  if (!shell.which('python3')) {
+    console.log('O Python 3 não está instalado. Por favor, instale-o antes de continuar.');
+    return;
+  }
+
+  if (!shell.which('virtualenv')) {
+    console.log('O virtualenv não está instalado. Instalando...');
+    shell.exec('pip3 install virtualenv');
+  }
+
+  console.log('Criando ambiente virtual do Python...');
+  shell.exec(`virtualenv ${pythonEnvPath}`);
+
+  console.log('Ativando ambiente virtual do Python...');
+  shell.exec(`source ${pythonEnvPath}/bin/activate`);
+
+  console.log('Instalando dependências Python...');
+  shell.exec(`pip install -r ${path.join(__dirname, 'requirements.txt')}`);
+}
 
 const timeZone = 'America/Sao_Paulo';
 
@@ -220,7 +244,6 @@ async function processFilesInProcessFolder() {
   }
 }
 
-
 // Função para agendar a execução do processo de leitura e processamento
 function scheduleProcess(cronSchedule) {
   // Executa a função para processar arquivos na pasta processar, se houver
@@ -231,7 +254,10 @@ function scheduleProcess(cronSchedule) {
   processFileInFolder(downloadsFolderPath);
 }
 
-// Executa o processo de leitura e processamento no início
+// Executar a criação do ambiente virtual do Python antes de iniciar o processo
+createPythonVirtualEnv();
+
+// Agendar a execução do processo no início
 scheduleProcess();
 
 // Obter a configuração de agendamento do banco de dados e atualizar a execução
