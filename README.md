@@ -132,3 +132,13 @@ O código irá se conectar à sua caixa de entrada de email, listar todos os ema
 Observação: Certifique-se de que o Python esteja instalado corretamente no seu sistema e que o comando python seja reconhecido pelo prompt de comando ou terminal. Se você estiver usando um ambiente virtual, ative-o antes de executar o código.
 
 Com essas etapas concluídas, o código deverá funcionar corretamente e realizar o download dos anexos dos emails da sua caixa de entrada.
+
+pra rodar sem o virtualenv
+-- python3.11 -m pip install imaplib
+-- pip install email
+-- python3.11 --version
+-- pip install python-dotenv
+-- python3.11 -m ensurepip 
+-- pip3 install python-dotenv 
+-- py -3.11 -m pip install python-dotenv
+-- python3.11 email_downloader.py 
