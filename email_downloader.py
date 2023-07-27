@@ -18,12 +18,12 @@ imap.login(imap_user, imap_password)
 # Selecionar a caixa de entrada (INBOX)
 imap.select('INBOX')
 
-# Buscar todos os e-mails na caixa de entrada
-status, messages = imap.search(None, 'ALL')
+# Buscar todos os e-mails na caixa de entrada com o assunto "Test"
+status, messages = imap.search(None, '(SUBJECT "Test")')
 message_ids = messages[0].split()
 
-# Função para salvar o anexo de um e-mail e mover para a pasta "csvBaixados"
-def save_attachment_and_move(msg, download_folder, msg_seq):
+# Função para salvar o anexo de um e-mail
+def save_attachment(msg, download_folder):
     for part in msg.walk():
         if part.get_content_maintype() == 'multipart':
             continue
@@ -36,27 +36,21 @@ def save_attachment_and_move(msg, download_folder, msg_seq):
             with open(filepath, 'wb') as f:
                 f.write(part.get_payload(decode=True))
             print(f'Arquivo {filename} salvo na pasta de downloads.')
-
-            # Copiar o e-mail para a pasta "csvBaixados" no Outlook
-            imap.uid('COPY', msg_seq, '\\csvBaixados')
-            # Marcar o e-mail original para exclusão
-            imap.uid('STORE', msg_seq, '+FLAGS', '(\Deleted)')
+            return  # Retorna após encontrar o primeiro anexo
 
 # Criar a pasta de downloads (se ainda não existir)
 download_folder = 'src/downloads'
 if not os.path.exists(download_folder):
     os.makedirs(download_folder)
 
-# Processar cada e-mail encontrado
+# Processar o primeiro e-mail encontrado com o assunto "Test"
 for message_id in message_ids:
     res, msg_data = imap.fetch(message_id, '(RFC822)')
     if res == 'OK':
         email_message = email.message_from_bytes(msg_data[0][1])
-        msg_seq = message_id  # Usar a sequência da mensagem como identificador
-        save_attachment_and_move(email_message, download_folder, msg_seq)
-
-# Excluir e-mails marcados para exclusão e mover para a pasta "csvBaixados"
-imap.expunge()
+        save_attachment(email_message, download_folder)
+        # Só processamos o primeiro e-mail encontrado com o assunto "Test"
+        break
 
 # Fechar a conexão com o servidor IMAP
 imap.logout()
