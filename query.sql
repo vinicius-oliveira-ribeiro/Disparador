@@ -6,7 +6,6 @@ CREATE TABLE public.envio_de_email (
     modified_date TIMESTAMP NOT NULL
 ); 
 
-
 CREATE TABLE IF NOT EXISTS public.destinatarios (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
@@ -24,12 +23,13 @@ CREATE TABLE IF NOT EXISTS public.app_control (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
-CREATE TABLE public.error_log (
-  id SERIAL PRIMARY KEY,
-  error_type VARCHAR(100) NOT NULL,
-  error_message TEXT NOT NULL,
-  occurred_at TIMESTAMP NOT NULL
-);
+-- Vamos salvar os logs no proprio projeto
+--CREATE TABLE public.error_log (
+--  id SERIAL PRIMARY KEY,
+--  error_type VARCHAR(100) NOT NULL,
+--  error_message TEXT NOT NULL,
+--  occurred_at TIMESTAMP NOT NULL
+--);
 
 ALTER TABLE public.app_control
 ALTER COLUMN next_execution TYPE VARCHAR(255);
