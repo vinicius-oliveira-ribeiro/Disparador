@@ -88,3 +88,47 @@ Considerações Finais
 O Disparador de E-mails é uma ferramenta poderosa para monitorar o espaço em disco de contas de e-mail e notificar os usuários quando o espaço utilizado está se aproximando do limite. Com a configuração de agendamento flexível, você pode ajustar facilmente o cronograma de execução para atender às suas necessidades específicas.
 
 Certifique-se de monitorar os logs de execução e os erros registrados no banco de dados para garantir que o aplicativo esteja funcionando corretamente.
+
+
+
+exec python
+
+Documentação do Código Python - Email Downloader
+
+Este documento fornece informações sobre as bibliotecas Python necessárias para executar o código email_downloader.py e como executá-lo corretamente.
+
+1. Bibliotecas Necessárias:
+
+Certifique-se de ter as seguintes bibliotecas instaladas antes de executar o código:
+
+imaplib: Biblioteca para acessar e interagir com servidores de email através do protocolo IMAP.
+email: Biblioteca para trabalhar com mensagens de email.
+os: Biblioteca para interagir com o sistema operacional, permitindo acessar variáveis de ambiente.
+dotenv: Biblioteca para carregar variáveis de ambiente a partir de um arquivo .env.
+2. Instalação das Bibliotecas:
+
+Se você não tiver as bibliotecas instaladas, você pode instalá-las manualmente usando o pip, o gerenciador de pacotes padrão do Python. Abra o prompt de comando ou terminal e execute o seguinte comando:
+
+Copy code
+pip install imaplib email dotenv
+3. Configuração das Credenciais:
+
+Para executar o código corretamente, é necessário configurar as credenciais de acesso ao seu email. Crie um arquivo chamado .env na mesma pasta do arquivo email_downloader.py e adicione as seguintes linhas:
+
+makefile
+Copy code
+EMAIL_USER=sua_conta_de_email
+EMAIL_PASSWORD=sua_senha_de_email
+Substitua sua_conta_de_email pela sua conta de email e sua_senha_de_email pela senha correspondente. Essas variáveis serão carregadas pelo código usando a biblioteca dotenv.
+
+4. Executando o Código:
+
+Após a instalação das bibliotecas e a configuração das credenciais, você pode executar o código email_downloader.py. Abra o prompt de comando ou terminal e navegue até a pasta que contém o arquivo email_downloader.py. Em seguida, execute o seguinte comando:
+
+Copy code
+python email_downloader.py
+O código irá se conectar à sua caixa de entrada de email, listar todos os emails disponíveis e baixar os anexos para a pasta download na raiz do projeto.
+
+Observação: Certifique-se de que o Python esteja instalado corretamente no seu sistema e que o comando python seja reconhecido pelo prompt de comando ou terminal. Se você estiver usando um ambiente virtual, ative-o antes de executar o código.
+
+Com essas etapas concluídas, o código deverá funcionar corretamente e realizar o download dos anexos dos emails da sua caixa de entrada.
