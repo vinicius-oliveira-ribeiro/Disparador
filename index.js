@@ -1,4 +1,3 @@
-const shell = require('shelljs');
 const path = require('path');
 const csv = require('csv-parser');
 const fs = require('fs');
@@ -6,41 +5,41 @@ const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
 const cron = require('node-cron');
 const dotenv = require('dotenv');
-const { format, differenceInDays, parseISO } = require('date-fns');
+const shell = require('shelljs');
 
-dotenv.config(); // Load environment variables from .env file
+dotenv.config();
 
-// Função para criar um ambiente virtual do Python e instalar as dependências
-function createPythonVirtualEnv() {
-  const pythonEnvPath = path.join(__dirname, 'python_env');
+function installPythonDependencies() {
+  console.log('Instalando python-dotenv...');
+  shell.exec('py -3.11 -m pip install python-dotenv', (code, stdout, stderr) => {
+    if (code !== 0) {
+      console.error(`Erro ao instalar python-dotenv: ${stderr}`);
+      process.exit(1);
+    }
 
-  if (!shell.which('python3')) {
-    console.log('O Python 3 não está instalado. Por favor, instale-o antes de continuar.');
-    return;
-  }
+    console.log('python-dotenv instalado com sucesso.');
 
-  if (!shell.which('virtualenv')) {
-    console.log('O virtualenv não está instalado. Instalando...');
-    shell.exec('pip3 install virtualenv');
-  }
+    console.log('Executando email_downloader.py...');
+    shell.exec('python3.11 email_downloader.py', (code, stdout, stderr) => {
+      if (code !== 0) {
+        console.error(`Erro ao executar email_downloader.py: ${stderr}`);
+        process.exit(1);
+      }
 
-  console.log('Criando ambiente virtual do Python...');
-  shell.exec(`virtualenv ${pythonEnvPath}`);
-
-  console.log('Ativando ambiente virtual do Python...');
-  shell.exec(`source ${pythonEnvPath}/bin/activate`);
-
-  console.log('Instalando dependências Python...');
-  shell.exec(`pip install -r ${path.join(__dirname, 'requirements.txt')}`);
+      console.log('email_downloader.py executado com sucesso.');
+    });
+  });
 }
+
+installPythonDependencies();
 
 const timeZone = 'America/Sao_Paulo';
 
-// Função para registrar erros na tabela error_log
+// Function to log errors in the error_log table
 async function logError(errorType, errorMessage) {
   try {
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
       ssl: {
         rejectUnauthorized: false, // Set this to true if your database requires SSL
       },
@@ -59,7 +58,7 @@ async function logError(errorType, errorMessage) {
   }
 }
 
-// Função para ler e processar o arquivo CSV
+// Function to read and process the CSV file
 async function processCSVFile(csvFilePath) {
   const jsonArray = [];
 
@@ -161,7 +160,7 @@ async function processCSVFile(csvFilePath) {
 
         // Create a connection pool for the PostgreSQL database
         const pool = new Pool({
-          connectionString: process.env.DATABASE_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+          connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
           ssl: {
             rejectUnauthorized: false, // Set this to true if your database requires SSL
           },
@@ -189,42 +188,42 @@ async function processCSVFile(csvFilePath) {
     });
 }
 
-// Função para mover um arquivo de uma pasta para outra
+// Function to move a file from one folder to another
 function moveFile(sourcePath, destinationPath) {
   fs.renameSync(sourcePath, destinationPath);
 }
 
-// Função para ler e processar um arquivo CSV na pasta processar
+// Function to read and process a CSV file in the processar folder
 async function processFileInFolder(folderPath) {
-  // Lista os arquivos na pasta
+  // List the files in the folder
   const files = fs.readdirSync(folderPath);
 
-  // Verifica se há arquivos na pasta
+  // Check if there are files in the folder
   if (files.length === 0) {
     console.log(`Não há arquivos na pasta ${folderPath}. Aguardando novos arquivos...`);
     return;
   }
 
-  // Assume que haverá apenas um arquivo na pasta
+  // Assume that there will be only one file in the folder
   const csvFilePath = path.join(folderPath, files[0]);
 
   console.log(`Iniciando leitura e processamento do arquivo CSV ${csvFilePath}...`);
   await processCSVFile(csvFilePath);
   console.log(`Arquivo CSV ${csvFilePath} processado com sucesso.`);
 
-  // Move o arquivo processado para a pasta de processado
+  // Move the processed file to the processado folder
   const processedFolderPath = path.join(__dirname, 'src/processado');
   moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
 
   console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
 }
 
-// Função para verificar e processar os arquivos na pasta processar
+// Function to check and process the files in the processar folder
 async function processFilesInProcessFolder() {
   const processFolderPath = path.join(__dirname, 'src/processar');
   const files = fs.readdirSync(processFolderPath);
 
-  // Verifica se há arquivos na pasta
+  // Check if there are files in the folder
   if (files.length === 0) {
     console.log(`Não há arquivos para processar na pasta ${processFolderPath}. Aguardando novos arquivos...`);
     return;
@@ -236,7 +235,7 @@ async function processFilesInProcessFolder() {
     await processCSVFile(filePath);
     console.log(`Arquivo ${file} processado com sucesso.`);
 
-    // Move o arquivo processado para a pasta de processado
+    // Move the processed file to the processado folder
     const processedFolderPath = path.join(__dirname, 'src/processado');
     moveFile(filePath, path.join(processedFolderPath, file));
 
@@ -244,27 +243,24 @@ async function processFilesInProcessFolder() {
   }
 }
 
-// Função para agendar a execução do processo de leitura e processamento
+// Function to schedule the execution of the process
 function scheduleProcess(cronSchedule) {
-  // Executa a função para processar arquivos na pasta processar, se houver
+  // Execute the function to process files in the processar folder, if any
   processFilesInProcessFolder();
 
-  // Executa a função para ler e processar o arquivo CSV em downloads, se houver
+  // Execute the function to read and process the CSV file in downloads folder, if any
   const downloadsFolderPath = path.join(__dirname, 'src/downloads');
   processFileInFolder(downloadsFolderPath);
 }
 
-// Executar a criação do ambiente virtual do Python antes de iniciar o processo
-createPythonVirtualEnv();
-
-// Agendar a execução do processo no início
+// Schedule the process execution at the beginning
 scheduleProcess();
 
-// Obter a configuração de agendamento do banco de dados e atualizar a execução
+// Get the execution schedule configuration from the database and update the execution
 async function updateExecutionSchedule() {
   try {
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
       ssl: {
         rejectUnauthorized: false, // Set this to true if your database requires SSL
       },
@@ -294,7 +290,7 @@ async function updateExecutionSchedule() {
   }
 }
 
-// Agendamento para verificar e atualizar o cron de execução a cada minuto
+// Schedule to check and update the execution cron every minute
 cron.schedule('* * * * *', () => {
   updateExecutionSchedule();
 });
