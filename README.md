@@ -138,7 +138,11 @@ pra rodar sem o virtualenv
 -- pip install email
 -- python3.11 --version
 -- pip install python-dotenv
+
 -- python3.11 -m ensurepip 
 -- pip3 install python-dotenv 
+
+----------------Isso aqui Work----------------
+---------------------a------------------------
 -- py -3.11 -m pip install python-dotenv
 -- python3.11 email_downloader.py 
