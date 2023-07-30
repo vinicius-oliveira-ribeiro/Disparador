@@ -21,14 +21,11 @@ CREATE TABLE IF NOT EXISTS public.app_control (
   app_name VARCHAR(255) NOT NULL,
   last_execution TIMESTAMP,
   next_execution TIMESTAMP,
-  cron VARCHAR(50), -- Coluna para armazenar a configuração do cron
-  email_receipt_date DATE,
+  cron VARCHAR(50), -- Coluna para armazenad
+  email_receipt_date TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
-
-ALTER TABLE public.app_control
-ADD COLUMN email_receipt_date DATE;
 
 -- Vamos salvar os logs no proprio projeto
 --CREATE TABLE public.error_log (
