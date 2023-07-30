@@ -50,6 +50,22 @@ download_folder = 'src/downloads'
 if not os.path.exists(download_folder):
     os.makedirs(download_folder)
 
+# Conectar ao banco de dados PostgreSQL
+url_banco_dados = os.environ.get('DB_URL')
+conn = psycopg2.connect(url_banco_dados)
+cursor = conn.cursor()
+
+# Obter a data salva na coluna "email_receipt_date" da tabela "app_control"
+get_date_query = """
+    SELECT email_receipt_date FROM public.app_control
+    WHERE app_name = %s
+    ORDER BY id DESC
+    LIMIT 1;
+"""
+cursor.execute(get_date_query, ['disparador_de_email'])
+result = cursor.fetchone()
+email_receipt_date = result[0] if result else None
+
 # Processar cada e-mail na caixa de entrada
 for message_id in message_ids:
     res, msg_data = imap.fetch(message_id, '(RFC822)')
@@ -69,7 +85,13 @@ for message_id in message_ids:
 
             # Verificar se o e-mail tem anexo
             if email_message.get_content_maintype() == 'multipart':
-                save_attachment(email_message, download_folder)
+                # Verificar se a data do e-mail é maior que a data salva
+                email_date_str = email_info["Date"]
+                email_date = datetime.strptime(email_date_str, '%a, %d %b %Y %H:%M:%S %z').astimezone(pytz.UTC)
+                if email_receipt_date is None or email_date > email_receipt_date.replace(tzinfo=pytz.UTC):
+                    save_attachment(email_message, download_folder)
+                else:
+                    print('Não há e-mails novos ')
 
             # Adicionar conteúdo do e-mail ao dicionário
             for part in email_message.walk():
@@ -86,30 +108,22 @@ for message_id in message_ids:
 imap.logout()
 
 # Ordenar a lista de e-mails por data (do mais recente para o mais antigo)
-emails_list.sort(key=lambda x: datetime.strptime(x['Date'], '%a, %d %b %Y %H:%M:%S %z'), reverse=True)
+emails_list.sort(key=lambda x: datetime.strptime(x['Date'], '%a, %d %b %Y %H:%M:%S %z').astimezone(pytz.UTC), reverse=True)
 
 # Obter o e-mail mais recente
 most_recent_email = emails_list[0]
 
-# Converter a data e hora do e-mail para o fuso horário correto (UTC-3, horário de Brasília)
-timezone_br = pytz.timezone('America/Sao_Paulo')
-email_date = datetime.strptime(most_recent_email['Date'], '%a, %d %b %Y %H:%M:%S %z').astimezone(timezone_br)
+# Extrair a data de recebimento do e-mail mais recente
+most_recent_email_date_str = most_recent_email["Date"]
+most_recent_email_date = datetime.strptime(most_recent_email_date_str, '%a, %d %b %Y %H:%M:%S %z').astimezone(pytz.UTC)
 
-# Formatar a data e hora para o padrão desejado (ano-mês-dia hora:minuto:segundo)
-formatted_email_date = email_date.strftime('%Y-%m-%d %H:%M:%S')
-
-# Conectar ao banco de dados PostgreSQL
-url_banco_dados = os.environ.get('DB_URL')
-conn = psycopg2.connect(url_banco_dados)
-cursor = conn.cursor()
-
-# Atualizar a data e hora de recebimento de e-mails no banco de dados
-atualizar_query = sql.SQL('''
+# Salvar a data de recebimento na coluna "email_receipt_date" da tabela "app_control"
+save_date_query = """
     UPDATE public.app_control
     SET email_receipt_date = %s
     WHERE app_name = %s
-''')
-cursor.execute(atualizar_query, [formatted_email_date, 'disparador_de_email'])
+"""
+cursor.execute(save_date_query, (most_recent_email_date, 'disparador_de_email'))
 conn.commit()
 
 # Fechar a conexão com o banco de dados
