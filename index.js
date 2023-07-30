@@ -242,25 +242,28 @@ async function processFilesInProcessFolder() {
 }
 
 // Function to schedule the execution of the process
-function scheduleProcess(cronSchedule) {
+function scheduleProcess(cronExpression) {
   // Execute the function to process files in the processar folder, if any
   processFilesInProcessFolder();
 
   // Execute the function to read and process the CSV file in downloads folder, if any
   const downloadsFolderPath = path.join(__dirname, 'src/downloads');
   processFileInFolder(downloadsFolderPath);
+
+  // Schedule the next execution based on the cronExpression from the database
+  cron.schedule(cronExpression, () => {
+    scheduleProcess(cronExpression);
+    installPythonDependencies();
+  });
 }
 
-// Schedule the process execution at the beginning
-scheduleProcess();
-
-// Get the execution schedule configuration from the database and update the execution
-async function updateExecutionSchedule() {
+// Schedule the initial process execution based on the information from the database
+async function scheduleInitialProcess() {
   try {
     const pool = new Pool({
-      connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      connectionString: process.env.DB_URL,
       ssl: {
-        rejectUnauthorized: false, // Set this to true if your database requires SSL
+        rejectUnauthorized: false,
       },
     });
 
@@ -274,10 +277,7 @@ async function updateExecutionSchedule() {
 
     if (schedule) {
       const cronExpression = schedule.cron ? schedule.cron : '*/3 * * * *'; // A cada 3 minutos (para fins de demonstração)
-      cron.schedule(cronExpression, () => {
-        scheduleProcess(cronExpression);
-        installPythonDependencies();
-      });
+      scheduleProcess(cronExpression);
       console.log('Agendamento de tarefa configurado com sucesso:', cronExpression);
     } else {
       console.log('Nenhuma configuração de agendamento encontrada para disparador_de_email.');
@@ -285,11 +285,14 @@ async function updateExecutionSchedule() {
 
     pool.end();
   } catch (error) {
-    console.error('Erro ao atualizar informações de execução no banco de dados:', error);
+    console.error('Erro ao obter informações de execução no banco de dados:', error);
   }
 }
 
 // Schedule to check and update the execution cron every minute
 cron.schedule('* * * * *', () => {
-  updateExecutionSchedule();
+  scheduleInitialProcess();
 });
+
+// Agendar a execução inicial do processo com base nas informações do banco de dados
+scheduleInitialProcess();
