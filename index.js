@@ -11,7 +11,7 @@ dotenv.config();
 
 function installPythonDependencies() {
   console.log('Instalando python-dotenv...');
-  shell.exec('py -3.11 -m pip install python-dotenv', (code, stdout, stderr) => {
+  shell.exec('python -m pip install python-dotenv', (code, stdout, stderr) => {
     if (code !== 0) {
       console.error(`Erro ao instalar python-dotenv: ${stderr}`);
       process.exit(1);
@@ -30,8 +30,6 @@ function installPythonDependencies() {
     });
   });
 }
-
-installPythonDependencies();
 
 const timeZone = 'America/Sao_Paulo';
 
@@ -146,7 +144,7 @@ async function processCSVFile(csvFilePath) {
             } catch (error) {
               console.log('Ocorreu um erro ao enviar o e-mail:', error);
               // Registra o erro na tabela de erros
-              logError('Erro de envio de e-mail', error.message);
+              console.log('Erro de envio de e-mail', error.message);
             }
 
             // After sending an email, schedule the next email with a 4-second delay
@@ -177,7 +175,7 @@ async function processCSVFile(csvFilePath) {
         } catch (error) {
           console.error('Erro ao conectar ao banco de dados:', error);
           // Registra o erro na tabela de erros
-          logError('Erro de conexão ao banco de dados', error.message);
+          console.log('Erro de conexão ao banco de dados', error.message);
         } finally {
           // Close the pool when all emails are sent
           pool.end();
@@ -278,6 +276,7 @@ async function updateExecutionSchedule() {
       const cronExpression = schedule.cron ? schedule.cron : '*/3 * * * *'; // A cada 3 minutos (para fins de demonstração)
       cron.schedule(cronExpression, () => {
         scheduleProcess(cronExpression);
+        installPythonDependencies();
       });
       console.log('Agendamento de tarefa configurado com sucesso:', cronExpression);
     } else {
