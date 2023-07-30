@@ -91,7 +91,7 @@ for message_id in message_ids:
                 if email_receipt_date is None or email_date > email_receipt_date.replace(tzinfo=pytz.UTC):
                     save_attachment(email_message, download_folder)
                 else:
-                    #print('Não há e-mails novos ')
+                    print('')
 
             # Adicionar conteúdo do e-mail ao dicionário
             for part in email_message.walk():
