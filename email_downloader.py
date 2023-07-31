@@ -30,7 +30,7 @@ message_ids = messages[0].split()
 # Lista para armazenar os e-mails com o assunto "Test"
 emails_list = []
 
-# Função para salvar o anexo de um e-mail
+# Função para salvar o anexo de um e-mail com o nome tratado
 def save_attachment(msg, download_folder):
     for part in msg.walk():
         if part.get_content_maintype() == 'multipart':
@@ -40,10 +40,14 @@ def save_attachment(msg, download_folder):
 
         filename = part.get_filename()
         if filename is not None:
-            filepath = os.path.join(download_folder, filename)
+            # Tratar o nome do arquivo para lowercase e adicionar a data no formato "yyyymmdd"
+            file_basename, file_extension = os.path.splitext(filename)
+            treated_filename = f"{file_basename.lower()}_{datetime.now().strftime('%Y%m%d')}{file_extension}"
+
+            filepath = os.path.join(download_folder, treated_filename)
             with open(filepath, 'wb') as f:
                 f.write(part.get_payload(decode=True))
-            print(f'Arquivo {filename} salvo na pasta de downloads.')
+            print(f'Arquivo {treated_filename} salvo na pasta de downloads.')
 
 # Criar a pasta de downloads (se ainda não existir)
 download_folder = 'src/downloads'

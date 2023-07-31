@@ -11,7 +11,7 @@ dotenv.config();
 
 function installPythonDependencies() {
   console.log('Instalando python-dotenv...');
-  shell.exec('python -m pip install python-dotenv', (code, stdout, stderr) => {
+  shell.exec('py -m pip install python-dotenv', (code, stdout, stderr) => {
     if (code !== 0) {
       console.error(`Erro ao instalar python-dotenv: ${stderr}`);
       process.exit(1);
@@ -209,11 +209,13 @@ async function processFileInFolder(folderPath) {
   await processCSVFile(csvFilePath);
   console.log(`Arquivo CSV ${csvFilePath} processado com sucesso.`);
 
-  // Move the processed file to the processado folder
-  const processedFolderPath = path.join(__dirname, 'src/processado');
-  moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
-
-  console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
+  // Introduce a small delay (1 second) before moving the processed file to avoid conflicts
+  setTimeout(() => {
+    // Move the processed file to the processado folder
+    const processedFolderPath = path.join(__dirname, 'src/processado');
+    moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
+    console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
+  }, 1000);
 }
 
 // Function to check and process the files in the processar folder
@@ -233,11 +235,13 @@ async function processFilesInProcessFolder() {
     await processCSVFile(filePath);
     console.log(`Arquivo ${file} processado com sucesso.`);
 
-    // Move the processed file to the processado folder
-    const processedFolderPath = path.join(__dirname, 'src/processado');
-    moveFile(filePath, path.join(processedFolderPath, file));
-
-    console.log(`Arquivo ${file} movido para a pasta ${processedFolderPath}.`);
+    // Introduce a small delay (1 second) before moving the processed file to avoid conflicts
+    setTimeout(() => {
+      // Move the processed file to the processado folder
+      const processedFolderPath = path.join(__dirname, 'src/processado');
+      moveFile(filePath, path.join(processedFolderPath, file));
+      console.log(`Arquivo ${file} movido para a pasta ${processedFolderPath}.`);
+    }, 1000);
   }
 }
 
