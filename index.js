@@ -1,25 +1,46 @@
+const path = require('path');
 const csv = require('csv-parser');
 const fs = require('fs');
-const path = require('path');
 const nodemailer = require('nodemailer');
 const { Pool } = require('pg');
 const cron = require('node-cron');
 const dotenv = require('dotenv');
-const { format, differenceInDays, parseISO } = require('date-fns');
+const shell = require('shelljs');
 
-dotenv.config(); // Load environment variables from .env file
+dotenv.config();
+
+function installPythonDependencies() {
+  console.log('Instalando python-dotenv...');
+  shell.exec('py -m pip install python-dotenv', (code, stdout, stderr) => {
+    if (code !== 0) {
+      console.error(`Erro ao instalar python-dotenv: ${stderr}`);
+      process.exit(1);
+    }
+
+    console.log('python-dotenv instalado com sucesso.');
+
+    console.log('Executando email_downloader.py...');
+    shell.exec('python3.11 email_downloader.py', (code, stdout, stderr) => {
+      if (code !== 0) {
+        console.error(`Erro ao executar email_downloader.py: ${stderr}`);
+        process.exit(1);
+      }
+
+      console.log('email_downloader.py executado com sucesso.');
+    });
+  });
+}
 
 const timeZone = 'America/Sao_Paulo';
 
-// Função para registrar erros na tabela error_log
+// Function to log errors in the error_log table
 async function logError(errorType, errorMessage) {
   try {
     const pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT,
+      connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      ssl: {
+        rejectUnauthorized: false, // Set this to true if your database requires SSL
+      },
     });
 
     const query = `
@@ -35,7 +56,7 @@ async function logError(errorType, errorMessage) {
   }
 }
 
-// Função para ler e processar o arquivo CSV
+// Function to read and process the CSV file
 async function processCSVFile(csvFilePath) {
   const jsonArray = [];
 
@@ -123,7 +144,7 @@ async function processCSVFile(csvFilePath) {
             } catch (error) {
               console.log('Ocorreu um erro ao enviar o e-mail:', error);
               // Registra o erro na tabela de erros
-              logError('Erro de envio de e-mail', error.message);
+              console.log('Erro de envio de e-mail', error.message);
             }
 
             // After sending an email, schedule the next email with a 4-second delay
@@ -137,11 +158,10 @@ async function processCSVFile(csvFilePath) {
 
         // Create a connection pool for the PostgreSQL database
         const pool = new Pool({
-          user: process.env.DB_USER,
-          host: process.env.DB_HOST,
-          database: process.env.DB_NAME,
-          password: process.env.DB_PASSWORD,
-          port: process.env.DB_PORT,
+          connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+          ssl: {
+            rejectUnauthorized: false, // Set this to true if your database requires SSL
+          },
         });
 
         try {
@@ -155,7 +175,7 @@ async function processCSVFile(csvFilePath) {
         } catch (error) {
           console.error('Erro ao conectar ao banco de dados:', error);
           // Registra o erro na tabela de erros
-          logError('Erro de conexão ao banco de dados', error.message);
+          console.log('Erro de conexão ao banco de dados', error.message);
         } finally {
           // Close the pool when all emails are sent
           pool.end();
@@ -166,42 +186,44 @@ async function processCSVFile(csvFilePath) {
     });
 }
 
-// Função para mover um arquivo de uma pasta para outra
+// Function to move a file from one folder to another
 function moveFile(sourcePath, destinationPath) {
   fs.renameSync(sourcePath, destinationPath);
 }
 
-// Função para ler e processar um arquivo CSV na pasta processar
+// Function to read and process a CSV file in the processar folder
 async function processFileInFolder(folderPath) {
-  // Lista os arquivos na pasta
+  // List the files in the folder
   const files = fs.readdirSync(folderPath);
 
-  // Verifica se há arquivos na pasta
+  // Check if there are files in the folder
   if (files.length === 0) {
     console.log(`Não há arquivos na pasta ${folderPath}. Aguardando novos arquivos...`);
     return;
   }
 
-  // Assume que haverá apenas um arquivo na pasta
+  // Assume that there will be only one file in the folder
   const csvFilePath = path.join(folderPath, files[0]);
 
   console.log(`Iniciando leitura e processamento do arquivo CSV ${csvFilePath}...`);
   await processCSVFile(csvFilePath);
   console.log(`Arquivo CSV ${csvFilePath} processado com sucesso.`);
 
-  // Move o arquivo processado para a pasta de processado
-  const processedFolderPath = path.join(__dirname, 'processado');
-  moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
-
-  console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
+  // Introduce a small delay (1 second) before moving the processed file to avoid conflicts
+  setTimeout(() => {
+    // Move the processed file to the processado folder
+    const processedFolderPath = path.join(__dirname, 'src/processado');
+    moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
+    console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
+  }, 1000);
 }
 
-// Função para verificar e processar os arquivos na pasta processar
+// Function to check and process the files in the processar folder
 async function processFilesInProcessFolder() {
-  const processFolderPath = path.join(__dirname, 'processar');
+  const processFolderPath = path.join(__dirname, 'src/processar');
   const files = fs.readdirSync(processFolderPath);
 
-  // Verifica se há arquivos na pasta
+  // Check if there are files in the folder
   if (files.length === 0) {
     console.log(`Não há arquivos para processar na pasta ${processFolderPath}. Aguardando novos arquivos...`);
     return;
@@ -213,37 +235,40 @@ async function processFilesInProcessFolder() {
     await processCSVFile(filePath);
     console.log(`Arquivo ${file} processado com sucesso.`);
 
-    // Move o arquivo processado para a pasta de processado
-    const processedFolderPath = path.join(__dirname, 'processado');
-    moveFile(filePath, path.join(processedFolderPath, file));
-
-    console.log(`Arquivo ${file} movido para a pasta ${processedFolderPath}.`);
+    // Introduce a small delay (1 second) before moving the processed file to avoid conflicts
+    setTimeout(() => {
+      // Move the processed file to the processado folder
+      const processedFolderPath = path.join(__dirname, 'src/processado');
+      moveFile(filePath, path.join(processedFolderPath, file));
+      console.log(`Arquivo ${file} movido para a pasta ${processedFolderPath}.`);
+    }, 1000);
   }
 }
 
-
-// Função para agendar a execução do processo de leitura e processamento
-function scheduleProcess(cronSchedule) {
-  // Executa a função para processar arquivos na pasta processar, se houver
+// Function to schedule the execution of the process
+function scheduleProcess(cronExpression) {
+  // Execute the function to process files in the processar folder, if any
   processFilesInProcessFolder();
 
-  // Executa a função para ler e processar o arquivo CSV em downloads, se houver
-  const downloadsFolderPath = path.join(__dirname, 'downloads');
+  // Execute the function to read and process the CSV file in downloads folder, if any
+  const downloadsFolderPath = path.join(__dirname, 'src/downloads');
   processFileInFolder(downloadsFolderPath);
+
+  // Schedule the next execution based on the cronExpression from the database
+  cron.schedule(cronExpression, () => {
+    scheduleProcess(cronExpression);
+    installPythonDependencies();
+  });
 }
 
-// Executa o processo de leitura e processamento no início
-scheduleProcess();
-
-// Obter a configuração de agendamento do banco de dados e atualizar a execução
-async function updateExecutionSchedule() {
+// Schedule the initial process execution based on the information from the database
+async function scheduleInitialProcess() {
   try {
     const pool = new Pool({
-      user: process.env.DB_USER,
-      host: process.env.DB_HOST,
-      database: process.env.DB_NAME,
-      password: process.env.DB_PASSWORD,
-      port: process.env.DB_PORT,
+      connectionString: process.env.DB_URL,
+      ssl: {
+        rejectUnauthorized: false,
+      },
     });
 
     const query = `
@@ -256,9 +281,7 @@ async function updateExecutionSchedule() {
 
     if (schedule) {
       const cronExpression = schedule.cron ? schedule.cron : '*/3 * * * *'; // A cada 3 minutos (para fins de demonstração)
-      cron.schedule(cronExpression, () => {
-        scheduleProcess(cronExpression);
-      });
+      scheduleProcess(cronExpression);
       console.log('Agendamento de tarefa configurado com sucesso:', cronExpression);
     } else {
       console.log('Nenhuma configuração de agendamento encontrada para disparador_de_email.');
@@ -266,11 +289,14 @@ async function updateExecutionSchedule() {
 
     pool.end();
   } catch (error) {
-    console.error('Erro ao atualizar informações de execução no banco de dados:', error);
+    console.error('Erro ao obter informações de execução no banco de dados:', error);
   }
 }
 
-// Agendamento para verificar e atualizar o cron de execução a cada minuto
+// Schedule to check and update the execution cron every minute
 cron.schedule('* * * * *', () => {
-  updateExecutionSchedule();
+  scheduleInitialProcess();
 });
+
+// Agendar a execução inicial do processo com base nas informações do banco de dados
+scheduleInitialProcess();
