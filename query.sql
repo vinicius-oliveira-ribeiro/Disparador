@@ -6,9 +6,6 @@ CREATE TABLE public.envio_de_email (
     modified_date TIMESTAMP NOT NULL
 ); 
 
-ALTER TABLE public.envio_de_email
-ADD COLUMN receipt_date TIMESTAMP;
-
 CREATE TABLE IF NOT EXISTS public.destinatarios (
   id SERIAL PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
@@ -21,19 +18,20 @@ CREATE TABLE IF NOT EXISTS public.app_control (
   app_name VARCHAR(255) NOT NULL,
   last_execution TIMESTAMP,
   next_execution TIMESTAMP,
-  cron VARCHAR(50), -- Coluna para armazenad
   email_receipt_date TIMESTAMP,
+  cron VARCHAR(50), -- Coluna para armazenar a configuração do cron
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 
--- Vamos salvar os logs no proprio projeto
---CREATE TABLE public.error_log (
---  id SERIAL PRIMARY KEY,
---  error_type VARCHAR(100) NOT NULL,
---  error_message TEXT NOT NULL,
---  occurred_at TIMESTAMP NOT NULL
---);
+
+CREATE TABLE public.error_log (
+  id SERIAL PRIMARY KEY,
+  error_type VARCHAR(100) NOT NULL,
+  error_message TEXT NOT NULL,
+  occurred_at TIMESTAMP NOT NULL
+);
+
 
 ALTER TABLE public.app_control
 ALTER COLUMN next_execution TYPE VARCHAR(255);
