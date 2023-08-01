@@ -41,3 +41,14 @@ VALUES ('disparador_de_email', '2023-07-07T15:54:00', '* * * * *',NOW(), NOW());
 
 --create database do controle de emails usado no python
 CREATE TABLE IF NOT EXISTS public.emails (subject TEXT, date TIMESTAMP)
+
+-- ###############################################################################################
+UPDATE public.app_control
+SET email_receipt_date = '2023-07-31 10:00:00'
+WHERE id = 1;
+
+ALTER TABLE public.envio_de_email
+ALTER COLUMN last_sent_date TYPE DATE;
+
+select * from public.envio_de_email;
+-- ###############################################################################################
