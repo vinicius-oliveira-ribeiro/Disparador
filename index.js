@@ -103,18 +103,22 @@ async function processCSVFile(csvFilePath) {
 
             // Check if the email has already been sent by querying the database
             const checkEmailQuery = `
-              SELECT status FROM public.envio_de_email WHERE email = $1
+              SELECT status, email_receipt_date FROM public.envio_de_email WHERE email = $1
             `;
             const checkEmailValues = [email];
             const result = await client.query(checkEmailQuery, checkEmailValues);
 
-            if (result.rows.length > 0 && result.rows[0].status === 'sent') {
-              console.log(`E-mail ${email} já foi enviado. Nada a Fazer.`);
-              sendEmailWithDelay(index + 1, client); // Move on to the next email
-              return;
+            const currentDate = new Date();
+
+            if (result.rows.length > 0) {
+              const lastSentDate = result.rows[0].email_receipt_date;
+              if (lastSentDate && lastSentDate.toDateString() === currentDate.toDateString()) {
+                console.log(`E-mail ${email} já foi enviado hoje. Nada a Fazer.`);
+                sendEmailWithDelay(index + 1, client); // Move on to the next email
+                return;
+              }
             }
 
-            const currentDate = new Date();
             const nextDay = new Date(currentDate);
             nextDay.setDate(currentDate.getDate() + 1);
             const formattedDate = `${nextDay.getDate()}/${nextDay.getMonth() + 1}/${nextDay.getFullYear()}`;
@@ -134,12 +138,12 @@ async function processCSVFile(csvFilePath) {
               console.log('E-mail enviado:', info.response);
               console.log('URL do E-mail Ethereal:', nodemailer.getTestMessageUrl(info));
 
-              // Save the sent email to the database
+              // Save the sent email to the database with the current date
               const saveEmailQuery = `
-                INSERT INTO public.envio_de_email (email, status, create_date, modified_date)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO public.envio_de_email (email, status, email_receipt_date, create_date, modified_date)
+                VALUES ($1, $2, $3, $4, $5)
               `;
-              const values = [email, 'sent', new Date(), new Date()];
+              const values = [email, 'sent', currentDate, new Date(), new Date()];
               await client.query(saveEmailQuery, values);
             } catch (error) {
               console.log('Ocorreu um erro ao enviar o e-mail:', error);

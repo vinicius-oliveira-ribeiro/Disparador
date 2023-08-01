@@ -2,6 +2,7 @@ CREATE TABLE public.envio_de_email (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
     status VARCHAR(50) NOT NULL,
+    email_receipt_date DATE,
     create_date TIMESTAMP NOT NULL,
     modified_date TIMESTAMP NOT NULL
 ); 
