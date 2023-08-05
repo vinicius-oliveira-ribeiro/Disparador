@@ -37,9 +37,9 @@ const timeZone = 'America/Sao_Paulo';
 async function logError(errorType, errorMessage) {
   try {
     const pool = new Pool({
-      connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+      connectionString: process.env.DB_URL,
       ssl: {
-        rejectUnauthorized: false, // Set this to true if your database requires SSL
+        rejectUnauthorized: false,
       },
     });
 
@@ -90,8 +90,8 @@ async function processCSVFile(csvFilePath) {
           port: 587,
           secure: false, // Connection is not secure since the port is 587
           auth: {
-            user: process.env.EMAIL_USER, // Use your email address here
-            pass: process.env.EMAIL_PASS, // Use your email password here
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
           },
         });
 
@@ -124,13 +124,13 @@ async function processCSVFile(csvFilePath) {
             const formattedDate = `${nextDay.getDate()}/${nextDay.getMonth() + 1}/${nextDay.getFullYear()}`;
             const clientName = obj['Display Name'];
             const mailOptions = {
-              from: process.env.EMAIL_USER, // Use your email address as the 'from' field
-              to: email, // Use 'User Principal Name' as the recipient's email address
+              from: process.env.EMAIL_USER,
+              to: email,
               subject: 'Dados filtrados do JSON',
               text: `
                 Olá, ${clientName}, notamos que o limite de espaço em disco do seu e-mail está se aproximando. 
                 Agendamos uma limpeza para o dia ${formattedDate}.
-                Atenciosamente, Gabriel Rocha`, // Modify the email body to include the text and date
+                Atenciosamente, Gabriel Rocha`,
             };
 
             try {
@@ -149,6 +149,7 @@ async function processCSVFile(csvFilePath) {
               console.log('Ocorreu um erro ao enviar o e-mail:', error);
               // Registra o erro na tabela de erros
               console.log('Erro de envio de e-mail', error.message);
+              console.log('EmailError', error.message || 'Erro ao enviar o e-mail');
             }
 
             // After sending an email, schedule the next email with a 4-second delay
@@ -162,9 +163,9 @@ async function processCSVFile(csvFilePath) {
 
         // Create a connection pool for the PostgreSQL database
         const pool = new Pool({
-          connectionString: process.env.DB_URL, // Use your Heroku or Vercel PostgreSQL database URL here
+          connectionString: process.env.DB_URL,
           ssl: {
-            rejectUnauthorized: false, // Set this to true if your database requires SSL
+            rejectUnauthorized: false,
           },
         });
 
@@ -180,6 +181,7 @@ async function processCSVFile(csvFilePath) {
           console.error('Erro ao conectar ao banco de dados:', error);
           // Registra o erro na tabela de erros
           console.log('Erro de conexão ao banco de dados', error.message);
+          console.log('DatabaseError', error.message || 'Erro ao conectar ao banco de dados');
         } finally {
           // Close the pool when all emails are sent
           pool.end();
@@ -192,7 +194,15 @@ async function processCSVFile(csvFilePath) {
 
 // Function to move a file from one folder to another
 function moveFile(sourcePath, destinationPath) {
-  fs.renameSync(sourcePath, destinationPath);
+  fs.rename(sourcePath, destinationPath, (err) => {
+    if (err) {
+      console.error('Erro ao mover o arquivo:', err);
+      // Registra o erro na tabela de erros
+      console.error('File Moving Error', err.message || err.toString());
+    } else {
+      console.log(`Arquivo movido de ${sourcePath} para ${destinationPath}.`);
+    }
+  });
 }
 
 // Function to read and process a CSV file in the processar folder
@@ -218,7 +228,6 @@ async function processFileInFolder(folderPath) {
     // Move the processed file to the processado folder
     const processedFolderPath = path.join(__dirname, 'src/processado');
     moveFile(csvFilePath, path.join(processedFolderPath, files[0]));
-    console.log(`Arquivo CSV movido para a pasta ${processedFolderPath}.`);
   }, 1000);
 }
 
@@ -294,6 +303,7 @@ async function scheduleInitialProcess() {
     pool.end();
   } catch (error) {
     console.error('Erro ao obter informações de execução no banco de dados:', error);
+    console.log('DatabaseError', error.message || 'Erro ao obter informações de execução no banco de dados');
   }
 }
 
