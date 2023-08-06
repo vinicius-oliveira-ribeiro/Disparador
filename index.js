@@ -260,21 +260,20 @@ async function processFilesInProcessFolder() {
 
 // Function to schedule the execution of the process
 function scheduleProcess(cronExpression) {
-  // Execute the function to process files in the processar folder, if any
-  processFilesInProcessFolder();
-
-  // Execute the function to read and process the CSV file in downloads folder, if any
-  const downloadsFolderPath = path.join(__dirname, 'src/downloads');
-  processFileInFolder(downloadsFolderPath);
-
-  // Schedule the next execution based on the cronExpression from the database
   cron.schedule(cronExpression, () => {
-    scheduleProcess(cronExpression);
+    // Execute the function to process files in the processar folder, if any
+    processFilesInProcessFolder();
+
+    // Execute the function to read and process the CSV file in downloads folder, if any
+    const downloadsFolderPath = path.join(__dirname, 'src/downloads');
+    processFileInFolder(downloadsFolderPath);
+
+    // Call the function to install Python dependencies and execute email_downloader.py
     installPythonDependencies();
   });
 }
 
-// Schedule the initial process execution based on the information from the database
+// Function to schedule the initial process execution based on the information from the database
 async function scheduleInitialProcess() {
   try {
     const pool = new Pool({
@@ -306,11 +305,6 @@ async function scheduleInitialProcess() {
     console.log('DatabaseError', error.message || 'Erro ao obter informações de execução no banco de dados');
   }
 }
-
-// Schedule to check and update the execution cron every minute
-cron.schedule('* * * * *', () => {
-  scheduleInitialProcess();
-});
 
 // Agendar a execução inicial do processo com base nas informações do banco de dados
 scheduleInitialProcess();

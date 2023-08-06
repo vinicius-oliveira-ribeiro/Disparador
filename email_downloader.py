@@ -23,10 +23,6 @@ imap.login(imap_user, imap_password)
 # Selecionar a caixa de entrada (INBOX)
 imap.select('INBOX')
 
-# Buscar todos os e-mails na caixa de entrada
-status, messages = imap.search(None, 'ALL')
-message_ids = messages[0].split()
-
 # Lista para armazenar os e-mails com o assunto "Test"
 emails_list = []
 
@@ -71,6 +67,8 @@ result = cursor.fetchone()
 email_receipt_date = result[0] if result else None
 
 # Processar cada e-mail na caixa de entrada
+status, messages = imap.search(None, 'ALL')
+message_ids = messages[0].split()
 for message_id in message_ids:
     res, msg_data = imap.fetch(message_id, '(RFC822)')
     if res == 'OK':
