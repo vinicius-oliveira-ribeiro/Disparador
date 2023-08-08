@@ -123,12 +123,14 @@ async function processCSVFile(csvFilePath) {
             nextDay.setDate(currentDate.getDate() + 1);
             const formattedDate = `${nextDay.getDate()}/${nextDay.getMonth() + 1}/${nextDay.getFullYear()}`;
             const clientName = obj['Display Name'];
+            const clientGbs = obj['Storage Used (GB)'];
             const mailOptions = {
               from: process.env.EMAIL_USER,
               to: email,
               subject: 'Dados filtrados do JSON',
               text: `
-                Olá, ${clientName}, notamos que o limite de espaço em disco do seu e-mail está se aproximando. 
+                Olá, ${clientName}, notamos que o limite de espaço em disco do seu e-mail com um total de ${clientGbs} Gigabytes, dentro de alguns dias,
+                seu armazenamento estara lotado em breve. 
                 Agendamos uma limpeza para o dia ${formattedDate}.
                 Atenciosamente, Gabriel Rocha`,
             };
