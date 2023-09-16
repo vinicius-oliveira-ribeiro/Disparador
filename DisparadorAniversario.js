@@ -23,7 +23,8 @@ async function enviarEmailAniversario() {
 
     // Consulta os aniversariantes de hoje na tabela aniversariantes
     const query = `
-      SELECT id, nome, email, corpo_email, ultimo_envio FROM aniversariantes
+      SELECT a.id, a.nome, a.email, a.corpo_email_id, c.corpo_texto, a.ultimo_envio FROM aniversariantes a
+      JOIN corpos_email c ON a.corpo_email_id = c.id
     `;
     const result = await pool.query(query);
     const aniversariantes = result.rows;
@@ -31,7 +32,7 @@ async function enviarEmailAniversario() {
     console.log('Iniciando verificação de aniversariantes...');
 
     for (const aniversariante of aniversariantes) {
-      const { id, nome, email, corpo_email, ultimo_envio } = aniversariante;
+      const { id, nome, email, corpo_email_id, corpo_texto, ultimo_envio } = aniversariante;
       const dataAniversario = new Date(ultimo_envio); // Converte a data de último envio para um objeto Date
 
       // Verifica se já se passou um ano desde o último envio de e-mail
@@ -49,7 +50,7 @@ async function enviarEmailAniversario() {
           },
         });
 
-        const corpoEmailPersonalizado = corpo_email
+        const corpoEmailPersonalizado = corpo_texto
           .replace('{{nome}}', nome)
           .replace('{{data_aniversario}}', dataHoje);
 
@@ -91,6 +92,5 @@ async function enviarEmailAniversario() {
   timezone: timeZone
 });
  */
-
 
 enviarEmailAniversario();
