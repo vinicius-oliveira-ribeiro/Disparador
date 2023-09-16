@@ -31,30 +31,32 @@ async function enviarEmailAniversario() {
     const hoje = new Date();
     const diaAtual = hoje.getDate();
     const mesAtual = hoje.getMonth() + 1;
-    const dataHoje = `${hoje.getFullYear()}-${mesAtual.toString().padStart(2, '0')}-${diaAtual.toString().padStart(2, '0')}`;
 
     // Consulta os aniversariantes de hoje na tabela aniversariantes
     const query = `
-      SELECT a.id, a.nome, a.email, a.ultimo_envio, c.corpo_texto
+      SELECT a.id, a.nome, a.email, a.ultimo_envio, c.corpo_texto,
+      EXTRACT(MONTH FROM a.data_aniversario) as mes,
+      EXTRACT(DAY FROM a.data_aniversario) as dia
       FROM aniversariantes AS a
       INNER JOIN corpos_email AS c ON a.corpo_email_id = c.id
+      WHERE EXTRACT(MONTH FROM a.data_aniversario) = $1 AND EXTRACT(DAY FROM a.data_aniversario) = $2
     `;
-    const result = await pool.query(query);
+    const values = [mesAtual, diaAtual];
+    const result = await pool.query(query, values);
     const aniversariantes = result.rows;
 
     console.log('Iniciando verificação de aniversariantes...');
 
     for (const aniversariante of aniversariantes) {
       const { id, nome, email, corpo_texto, ultimo_envio } = aniversariante;
-      const dataAniversario = new Date(ultimo_envio);
 
       // Verifica se já se passou um ano desde o último envio de e-mail
-      if (hoje.getMonth() === dataAniversario.getMonth() && hoje.getDate() === dataAniversario.getDate()) {
+      if (!ultimo_envio || (hoje.getTime() - new Date(ultimo_envio).getTime() >= 31536000000)) {
         console.log(`Enviando e-mail de aniversário para ${email}...`);
 
         const corpoEmailPersonalizado = corpo_texto
           .replace('{{nome}}', nome)
-          .replace('{{data_aniversario}}', dataHoje);
+          .replace('{{data_aniversario}}', hoje.toLocaleDateString('pt-BR'));
 
         const mailOptions = {
           from: process.env.EMAIL_USER,
@@ -71,7 +73,7 @@ async function enviarEmailAniversario() {
           const updateQuery = `
             UPDATE aniversariantes SET ultimo_envio = $2 WHERE id = $1
           `;
-          const updateValues = [id, hoje];
+          const updateValues = [id, hoje.toISOString().split('T')[0]];
           await pool.query(updateQuery, updateValues);
         } catch (error) {
           console.error(`Erro ao enviar e-mail para ${email}: ${error.message}`);
