@@ -7,6 +7,18 @@ dotenv.config();
 
 const timeZone = 'America/Sao_Paulo';
 
+// Configuração do transporte de e-mail
+const transporter = nodemailer.createTransport({
+  host: 'smtp.office365.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+// Função para enviar e-mails de aniversário
 async function enviarEmailAniversario() {
   try {
     const pool = new Pool({
@@ -23,8 +35,9 @@ async function enviarEmailAniversario() {
 
     // Consulta os aniversariantes de hoje na tabela aniversariantes
     const query = `
-      SELECT a.id, a.nome, a.email, a.corpo_email_id, c.corpo_texto, a.ultimo_envio FROM aniversariantes a
-      JOIN corpos_email c ON a.corpo_email_id = c.id
+      SELECT a.id, a.nome, a.email, a.ultimo_envio, c.corpo_texto
+      FROM aniversariantes AS a
+      INNER JOIN corpos_email AS c ON a.corpo_email_id = c.id
     `;
     const result = await pool.query(query);
     const aniversariantes = result.rows;
@@ -32,23 +45,12 @@ async function enviarEmailAniversario() {
     console.log('Iniciando verificação de aniversariantes...');
 
     for (const aniversariante of aniversariantes) {
-      const { id, nome, email, corpo_email_id, corpo_texto, ultimo_envio } = aniversariante;
-      const dataAniversario = new Date(ultimo_envio); // Converte a data de último envio para um objeto Date
+      const { id, nome, email, corpo_texto, ultimo_envio } = aniversariante;
+      const dataAniversario = new Date(ultimo_envio);
 
       // Verifica se já se passou um ano desde o último envio de e-mail
       if (hoje.getMonth() === dataAniversario.getMonth() && hoje.getDate() === dataAniversario.getDate()) {
-        // Se o mês e o dia de hoje coincidirem com o último envio, então é aniversário novamente
         console.log(`Enviando e-mail de aniversário para ${email}...`);
-
-        const transporter = nodemailer.createTransport({
-          host: 'smtp.office365.com',
-          port: 587,
-          secure: false,
-          auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-          },
-        });
 
         const corpoEmailPersonalizado = corpo_texto
           .replace('{{nome}}', nome)
