@@ -55,7 +55,7 @@ async function enviarEmailAniversario() {
         console.log(`Enviando e-mail de aniversário para ${email}...`);
 
         const corpoEmailPersonalizado = corpo_texto
-          .replace('{{nome}}', nome)
+          .replaceAll('{{nome}}', nome)
           .replace('{{data_aniversario}}', hoje.toLocaleDateString('pt-BR'));
 
         const mailOptions = {
