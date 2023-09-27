@@ -154,7 +154,6 @@ generateSystemInfoJSON().then(async (systemInfoJSON) => {
           )
           ON CONFLICT (userName) DO UPDATE
           SET
-            userName  = EXCLUDED.userName,
             version = EXCLUDED.version,
             systemManufacturer = EXCLUDED.systemManufacturer,
             systemModel = EXCLUDED.systemModel,

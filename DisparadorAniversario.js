@@ -89,12 +89,15 @@ async function enviarEmailAniversario() {
   }
 }
 
+var i = 0;
 // Agendar a execução diária para verificar e enviar e-mails de aniversário às 9h da manhã
-/* cron.schedule('0 9 * * *', () => {
+ cron.schedule('0 10 * * *', () => {
+  i++;
+  console.log(`Olha a quantidade de vezes que chamei a fun: ${i}`);
   enviarEmailAniversario();
 }, {
   timezone: timeZone
 });
- */
 
-enviarEmailAniversario();
+
+//enviarEmailAniversario();
